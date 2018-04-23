@@ -1,0 +1,117 @@
+---
+title: "STP 494 Final"
+author: "Jiaqi Wu, Excel Ortega, Terry Wen, Alex Ryan, Peter Le"
+date: "April 22, 2018"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE}
+## setting up 
+getwd()
+library(kknn)
+source("http://www.rob-mcculloch.org/2018_ml/webpage/R/docv.R")
+
+# wdbc = wisconsin diagnostic breast cancer 
+wdbc<- read.csv("brcancer.csv", header=TRUE)
+wdbc <- wdbc[,-1] #remove ID from dataset
+
+## Split into 70% train, 30% test 
+n = nrow(wdbc) #num "rows" in data
+set.seed(30) 
+ntrain = floor(n*0.70) #70% for train 
+ii = sample(1:n,ntrain) #reorder elements randomly
+wdbc_train = wdbc[ii,]
+wdbc_test= wdbc[-ii,]
+
+```
+## Introduction 
+Breast cancer... 
+
+This project will attempt to classify breast cancer tumors into two categories, benign or malignant, depending on tumor characteristics. 
+
+## Data
+Variable Name:  | Variable Description:
+---------------| ---------------------------------------------------------------------------
+`radius`         | Mean of distances from center to points on the perimeter 
+`texture`         | Standard deviation of gray-scale values
+`perimeter`         | lol
+`area`         | lol
+`smoothness`         | Local variation in radius lengths
+`compactness`         | perimeter^2 / area - 1.0
+`concavity`         | Severity of concave portions of the contour
+`concave points`         | Number of concave portions of the contour 
+`symmetry`         | lol
+`fractal dimension`         | "coastline approximation" - 1
+
+### Processing Data 
+Explain how we are only using the means How did we split train/test, etc. 
+
+## Data Models 
+Which models are we doing, etc. 
+
+### kNN 
+We used the r package kknn, which was covered in class. 
+
+```{r include=FALSE, eval=TRUE}
+# assign variables as x and y
+x=wdbc_train[,2:11] #only use mean data; 2:11
+y=wdbc_train[,1]
+
+# apply scaling function to each column of x
+mmsc=function(x){return((x-min(x))/(max(x)-min(x)))}
+xs = apply(x,2,mmsc) #scaling function 
+
+#plot y vs each x
+# TODO: figure out how to plot all of them at once
+#par(mfrow=c(1,2)) #two plot frames
+#pdf(file="crossval-test.pdf")
+#plot(x[,1],y,xlab="radius_mean",ylab="diagnosis")
+#dev.off()
+# benign = 0
+# malignant = 1 
+levels(y) = c(0,1)
+
+# turn y into a vector, yv, for cross-val 
+yv = as.numeric(as.vector(y))
+
+```
+
+
+
+```{r fig.width=5, fig.height=5, fig.align='center'}
+#run cross val once
+par(mfrow=c(1,1)) 
+#set.seed(30) 
+kv = seq(1, 100, 5) #k values to try
+n = length(yv)
+cvtemp = docvknn(xs,yv,kv,nfold=10)
+cvtemp = sqrt(cvtemp/n) #docvknn returns sum of squares
+plot(kv,cvtemp)
+```
+
+Preliminary plot for values of k versus cvmean, comparing the k parameter from 2 to 30 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally expensive model. Looks like the optimal k-value is somewhere around k=19, so we will reset the kv value to a smaller window
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
