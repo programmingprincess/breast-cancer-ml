@@ -1,10 +1,10 @@
 # breast-cancer-ml
 Classifying breast cancer with wdbc dataset. Final project for statistical machine learning course. 
 
-#Methods used: 
+# Methods used: 
 
-##kNN 
+## kNN 
 
-##Neural Net 
+## Neural Net 
 
-##Logit 
+## Logit 
