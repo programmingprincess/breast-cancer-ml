@@ -19,8 +19,10 @@ wdbc_train = wdbc[ii,]
 wdbc_test= wdbc[-ii,]
 
 # assign variables as x and y
-x=wdbc_train[,2:11] #only use mean data; 2:11
-y=wdbc_train[,1]
+# x=wdbc_train[,2:11] #only use mean data; 2:11
+# y=wdbc_train[,1]
+x=wdbc[,2:11] #only use mean data; 2:11
+y=wdbc[,1]
 
 # apply scaling function to each column of x
 mmsc=function(x){return((x-min(x))/(max(x)-min(x)))}
@@ -49,7 +51,7 @@ cvtemp = docvknn(xs,yv,kv,nfold=10)
 cvtemp = sqrt(cvtemp/n) #docvknn returns sum of squares
 plot(kv,cvtemp)
 
-# Preliminary plot for values of k versus cvmean, comparing the k parameter from 2 to 30 with 
+# Figure x: Preliminary plot for values of k versus cvmean, comparing the k parameter from 2 to 30 with 
 # the RMSE of a single model. This allows us to approximate range of appropriate k values 
 # before moving onto a more computationally expensive model. Looks like the optimal k value is
 # somewhere around k=19, so we will reset the kv value to a smaller window
@@ -59,13 +61,12 @@ kv = 2:30 #new k values to try
 #set.seed(30) 
 
 cvmean = rep(0,length(kv))
-ndocv = 15 # number of CV splits to try...50 took forever so I changed to 10
+ndocv = 10 # number of CV splits to try
 n=length(yv) #vector version of y
 cvmat = matrix(0,length(kv),ndocv) # track results for each split
 for(i in 1:ndocv) {
     cvtemp = docvknn(xs, yv, kv, nfold=10)
     cvmean = cvmean + cvtemp
-    #cat("cvmean: ", cvmean, "/n/n/n")
     cvmat[,i] = sqrt(cvtemp/n)
 }
 cvmean = cvmean/ndocv
@@ -74,6 +75,7 @@ plot(kv,cvmean,type="n",ylim=range(cvmat),xlab="k",cex.lab=1.5)
 for(i in 1:ndocv) lines(kv,cvmat[,i],col=i,lty=3)  #plot each result
 lines(kv,cvmean,type="b",col="black",lwd=2)  #plot average result
 
+
 #print table of k's and rmse's
 for(i in 2:29) {
   cat("k=",i, " rmse=", cvmean[i], "\n")  
@@ -81,12 +83,10 @@ for(i in 2:29) {
 
 cat("optimal k=", which.min(cvmean), "with average rmse of ", min(cvmean), "\n")
 
-
-
 # Plot of k verses cvmean, which compares the paramter k at values between 2 and 30 with the
 # RMSE of each model (calculated by comparing against the testing data). Each colored line represents a
-# different subset of the training data that, when averaged together to produce the black line, reduces bias and
-# variance in the model.
+# different subset of the training data that, when averaged together to produce the black line, 
+# reduces bias and variance in the model.
 
 
 # refit using k=17

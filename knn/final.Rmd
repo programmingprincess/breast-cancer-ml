@@ -56,7 +56,7 @@ Which models are we doing, etc.
 ### kNN 
 We used the r package kknn, which was covered in class. 
 
-```{r include=FALSE, eval=TRUE}
+```{r echo=FALSE, include=FALSE, eval=TRUE}
 # assign variables as x and y
 x=wdbc_train[,2:11] #only use mean data; 2:11
 y=wdbc_train[,1]
@@ -82,7 +82,7 @@ yv = as.numeric(as.vector(y))
 
 
 
-```{r fig.width=5, fig.height=5, fig.align='center'}
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
 #run cross val once
 par(mfrow=c(1,1)) 
 #set.seed(30) 
@@ -95,6 +95,60 @@ plot(kv,cvtemp)
 
 Preliminary plot for values of k versus cvmean, comparing the k parameter from 2 to 30 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally expensive model. Looks like the optimal k-value is somewhere around k=19, so we will reset the kv value to a smaller window
 
+```{r echo=FALSE, include=FALSE, eval=TRUE}
+
+kv = 2:30 #new k values to try
+#run cross val multiple times 
+#set.seed(30) 
+
+cvmean = rep(0,length(kv))
+ndocv = 15 # number of CV splits to try...50 took forever so I changed to 10
+n=length(yv) #vector version of y
+cvmat = matrix(0,length(kv),ndocv) # track results for each split
+for(i in 1:ndocv) {
+    cvtemp = docvknn(xs, yv, kv, nfold=10)
+    cvmean = cvmean + cvtemp
+    cvmat[,i] = sqrt(cvtemp/n)
+}
+```
+
+
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+cvmean = cvmean/ndocv
+cvmean = sqrt(cvmean/n)
+plot(kv,cvmean,type="n",ylim=range(cvmat),xlab="k",cex.lab=1.5)
+for(i in 1:ndocv) lines(kv,cvmat[,i],col=i,lty=3)  #plot each result
+lines(kv,cvmean,type="b",col="black",lwd=2)  #plot average result
+
+
+```
+
+Plot of k verses cvmean, which compares the paramter k at values between 2 and 30 with the RMSE of each model (calculated by comparing against the testing data). Each colored line represents a different subset of the training data that, when averaged together to produce the black line, reduces bias and variance in the model.
+
+```{r echo =FALSE,eval=TRUE} 
+#print table of k's and rmse's
+for(i in 2:29) {
+  cat("k=",i, " rmse=", cvmean[i], "\n")  
+} 
+
+cat("optimal k=", which.min(cvmean), "with average rmse of ", min(cvmean), "\n")
+
+```
+
+Refit using k=17
+
+```{r echo=FALSE, eval=TRUE}
+ddf = data.frame(yv,xs)
+near17 = kknn(yv~.,ddf,ddf,k=17,kernel="rectangular")
+lmf = lm(yv~.,ddf)
+fmat = cbind(yv,near17$fitted,lmf$fitted)
+
+#lets see how our knn model compares to linear 
+colnames(fmat) = c("y","kNN17","linear")
+pairs(fmat)
+print(cor(fmat))
+
+```
 
 ## R Markdown
 
