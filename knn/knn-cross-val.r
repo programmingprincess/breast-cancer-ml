@@ -7,7 +7,7 @@ source("http://www.rob-mcculloch.org/2018_ml/webpage/R/docv.R")
 # wdbc = wisconsin diagnostic breast cancer 
 wdbc<- read.csv("brcancer.csv", header=TRUE)
 wdbc <- wdbc[,-1] #remove ID from dataset
-means = wdbc[2:11]
+wdbc = wdbc[1:11] #use means only
 
 ## Split into 70% train, 30% test 
 ## Example from hw4.r 
@@ -19,9 +19,7 @@ wdbc_train = wdbc[ii,]
 wdbc_test= wdbc[-ii,]
 
 # assign variables as x and y
-# x=wdbc_train[,2:11] #only use mean data; 2:11
-# y=wdbc_train[,1]
-x=wdbc[,2:11] #only use mean data; 2:11
+x=wdbc[,2:11] 
 y=wdbc[,1]
 
 # apply scaling function to each column of x
@@ -37,10 +35,11 @@ dev.off()
 
 # benign = 0
 # malignant = 1 
-levels(y) = c(0,1)
+y = ifelse(y == "M", 1, 0)
+#levels(y) = c(0,1)
 
 # turn y into a vector, yv, for cross-val 
-yv = as.numeric(as.vector(y))
+yv = c(y)
 
 #run cross val once
 par(mfrow=c(1,1)) 
