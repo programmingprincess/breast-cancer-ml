@@ -1,0 +1,206 @@
+---
+title: "STP 494 Final"
+author: "Jiaqi Wu, Excel Ortega, Terry Wen, Alex Ryan, Peter Le"
+date: "April 22, 2018"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE}
+## prep and setup data 
+getwd()
+
+# wdbc = wisconsin diagnostic breast cancer 
+wdbc = read.csv("brcancer.csv", header=TRUE)
+wdbc = wdbc[,-1] #remove ID from dataset
+wdbc = wdbc[1:11] #use means only
+
+wdbc$diagnosis2 = ifelse(wdbc$diagnosis == "M", 1, 0)
+
+## Split into 70% train, 30% test 
+n = nrow(wdbc) #num "rows" in data
+set.seed(30) 
+ntrain = floor(n*0.70) #70% for train 
+ii = sample(1:n,ntrain) #reorder elements randomly
+wdbc_train = wdbc[ii,]
+wdbc_test= wdbc[-ii,]
+
+```
+## Introduction 
+Breast cancer... 
+
+This project will attempt to classify breast cancer tumors into two categories, benign or malignant, depending on tumor characteristics. 
+
+## Data
+Variable Name:  | Variable Description:
+---------------| ---------------------------------------------------------------------------
+`radius`         | Mean of distances from center to points on the perimeter 
+`texture`         | Standard deviation of gray-scale values
+`perimeter`         | lol
+`area`         | lol
+`smoothness`         | Local variation in radius lengths
+`compactness`         | perimeter^2 / area - 1.0
+`concavity`         | Severity of concave portions of the contour
+`concave points`         | Number of concave portions of the contour 
+`symmetry`         | lol
+`fractal dimension`         | "coastline approximation" - 1
+
+### Processing the Data 
+Explain how we are only using the means 
+How did we split train/test, etc. 
+
+## Data Models 
+Which models are we doing, etc. 
+kNN, logit, neural net... 
+
+### kNN 
+We used the r package kknn, which was covered in class. 
+
+```{r echo=FALSE, include=FALSE, eval=TRUE}
+
+# get libraries and helper files 
+library(kknn)
+source("http://www.rob-mcculloch.org/2018_ml/webpage/R/docv.R")
+
+# assign variables as x and y
+x=wdbc_train[,2:11] #only use mean data; 2:11
+y=wdbc_train[,1]
+
+# apply scaling function to each column of x
+mmsc=function(x){return((x-min(x))/(max(x)-min(x)))}
+xs = apply(x,2,mmsc) #scaling function 
+
+#plot y vs each x
+# TODO: figure out how to plot all of them at once
+# TODO: do we even need this anymore lol 
+#par(mfrow=c(1,2)) #two plot frames
+#pdf(file="crossval-test.pdf")
+#plot(x[,1],y,xlab="radius_mean",ylab="diagnosis")
+#dev.off()
+
+# benign = 0
+# malignant = 1 
+levels(y) = c(0,1)
+
+# turn y into a vector, yv, for cross-val 
+yv = as.numeric(as.vector(y))
+
+```
+
+
+Preliminary plot of k versus cvmean
+
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+#run cross val once
+par(mfrow=c(1,1)) 
+#set.seed(30) 
+kv = seq(1, 100, 5) #k values to try
+n = length(yv)
+cvtemp = docvknn(xs,yv,kv,nfold=10)
+cvtemp = sqrt(cvtemp/n) #docvknn returns sum of squares
+plot(kv,cvtemp)
+```
+
+**Figure x:** Comparing the k parameter from 1 to 100 in intervals of 5 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally intensive model. Looks like the optimal k-value is somewhere around k=19, so we will reset the kv value to a smaller window (2 to 30).
+
+```{r echo=FALSE, include=FALSE, eval=TRUE}
+
+kv = 2:30 #new k values to try
+#run cross val multiple times 
+#set.seed(30) 
+
+cvmean = rep(0,length(kv))
+ndocv = 15 # number of CV splits to try...50 took forever so I changed to 10
+n=length(yv) #vector version of y
+cvmat = matrix(0,length(kv),ndocv) # track results for each split
+for(i in 1:ndocv) {
+    cvtemp = docvknn(xs, yv, kv, nfold=10)
+    cvmean = cvmean + cvtemp
+    cvmat[,i] = sqrt(cvtemp/n)
+}
+```
+
+Plot of k versus cvmean, 10-fold 
+
+```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+cvmean = cvmean/ndocv
+cvmean = sqrt(cvmean/n)
+plot(kv,cvmean,type="n",ylim=range(cvmat),xlab="k",cex.lab=1.5)
+for(i in 1:ndocv) lines(kv,cvmat[,i],col=i,lty=3)  #plot each result
+lines(kv,cvmean,type="b",col="black",lwd=2)  #plot average result
+
+#TODO: pls double check my caption below. 
+
+```
+
+**Figure x:** This plot compares the paramter k at values between 2 and 30 with the RMSE of each model. Each colored line represents a different subset of the training data that, when averaged together to produce the black line, reduces bias and variance in the model.
+
+
+```{r echo =FALSE,eval=TRUE} 
+#print table of k's and rmse's
+for(i in 2:29) {
+  cat("k=",i, " rmse=", cvmean[i], "\n")  
+} 
+
+cat("optimal k=", which.min(cvmean), "with average rmse of ", min(cvmean), "\n")
+
+```
+
+
+Refit using k=17
+
+
+```{r echo=FALSE, eval=TRUE}
+#TODO: move this to the end. 
+ddf = data.frame(yv,xs)
+near17 = kknn(yv~.,ddf,ddf,k=17,kernel="rectangular")
+lmf = lm(yv~.,ddf)
+fmat = cbind(yv,near17$fitted,lmf$fitted)
+
+#lets see how our knn model compares to linear 
+colnames(fmat) = c("y","kNN17","linear")
+pairs(fmat)
+print(cor(fmat))
+
+```
+
+The table shows that kNN performs decently well, with an RMSE of 0.216 and accuracy of 91%. 
+
+### Logistic Regression
+We used glm fit to model our data. 
+
+``` {r echo = FALSE, include= TRUE, eval = TRUE}
+
+#save labels for later
+wdbc_testy = wdbc_test$diagnosis2
+wdbc_trainy = wdbc_train$diagnosis2 
+
+#model the data using glm
+logit.model = glm(wdbc_train$diagnosis2 ~ ., data = wdbc_train[-c(1)]) 
+
+summary(logit.model)
+```
+
+```{r echo=FALSE, include = TRUE, eval=TRUE}
+
+yhat = predict(logit.model,wdbc_test)
+
+#split values by probability
+yhatbin = ifelse(yhat > 0.5, 1, 0)
+
+#get confusion matrix
+table(yhatbin, wdbc_testy)
+
+```
+
+
+```{r echo = FALSE, eval = TRUE, fig.width=5, fig.height=5, fig.align='center'}
+#TODO: probably combine this to giant plot at the end 
+#plot distributed values
+plot(yhat,wdbc_testy)
+```
+
+## Conclusion
