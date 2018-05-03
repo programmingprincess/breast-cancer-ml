@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 This project will attempt to classify breast cancer tumors into two categories, benign or malignant, depending on tumor characteristics. 
 
 ## Data
-The dataset was obtained from Kaggle(https://www.kaggle.com/uciml/breast-cancer-wisconsin-data). Attributes include ID number, diagnosis (B = benign, M = malignant), and 30 real-valued input features. This project will focus on 11/32 attributes given in this dataset.
+The Wisconsin Diagnostic Breast Cancer (WDBC) dataset was obtained from [Kaggle](https://www.kaggle.com/uciml/breast-cancer-wisconsin-data). Attributes include ID number, diagnosis (B = benign, M = malignant), and 30 real-valued input features. This project will focus on 11/32 attributes given in this dataset.
 
 Features are computed from a digitized image of breast mass, and the data describes characteristics of the cell nuclei present in the image. 
 
@@ -34,7 +34,7 @@ The mean, standard error, and "worst" (largest) of each of the 10 features were 
 
 
 ### Processing the Data 
-```{r echo=FALSE, warning=FALSE}
+```{r echo=FALSE, include=FALSE, warning=FALSE}
 ## prep and setup data 
 getwd()
 # wdbc = wisconsin diagnostic breast cancer 
@@ -42,7 +42,7 @@ wdbc = read.csv("brcancer.csv", header=TRUE)
 wdbc = wdbc[,-1] #remove ID from dataset
 wdbc = wdbc[1:11] #use means only
 
-wdbc$diagnosis2 = ifelse(wdbc$diagnosis == "M", 1, 0)
+#wdbc$diagnosis2 = ifelse(wdbc$diagnosis == "M", 1, 0)
 
 ## Split into 70% train, 30% test 
 n = nrow(wdbc) #num "rows" in data
@@ -52,56 +52,57 @@ ii = sample(1:n,ntrain) #reorder elements randomly
 wdbc_train = wdbc[ii,]
 wdbc_test= wdbc[-ii,]
 
+diagnosis2_train = ifelse(wdbc_train$diagnosis == "M", 1, 0)
+diagnosis2_test = ifelse(wdbc_test$diagnosis == "M", 1, 0)
+
 ```
 
 First, we removed the ID attribute from the dataset because it does not correlate with diagnosis. Then, we created a dataset with only the variables we wantd to use: columns 1 through 11 (diagnosis column and 10 mean-value features). 
 
-We also added a column, named diagnosis2, that maps B (benign) to 0 and M (malignant) to 1. In total, the dataset contains 569 observations and 12 variables. 
-
-We split the data into two sets to build our models: 70% training data, and 30% test data. 
+We also added a column that maps B (benign) to 0 and M (malignant) to 1. This column contains the same information as the original diagnosis column, except the values are 0 and 1 rather than B and M (respectively). In total, the dataset contains 569 observations and 12 variables. We split the data into two sets to build our models: 70% training data, and 30% test data. 
 
 ## Data Models 
-We will attempt three methods from our Machine Learning class: logistic regression, k-nearest neighbors, and neural nets. 
+We attempted three methods from our Machine Learning class: logistic regression, k-nearest neighbors, and neural nets. Logistic regression was our baseline reference, but the remaining models were tuned for optimal performance. 
 
 
 ### Logistic Regression
-We used glm fit to model our data. 
+We used generalized linear models (glm) to model our data. Since the outcome we are trying to predict is binomial (benign or malignant), we chose a logistic regression model, given below: 
 
 ``` {r echo = FALSE, include= TRUE, eval = TRUE}
 
 #save labels for later
-wdbc_testy = wdbc_test$diagnosis2
-wdbc_trainy = wdbc_train$diagnosis2 
+wdbc_testy = diagnosis2_test
+wdbc_trainy = diagnosis2_train
 
 #model the data using glm
-logit.model = glm(wdbc_train$diagnosis2 ~ ., data = wdbc_train[-c(1)]) 
-
+logit.model = glm(diagnosis2_train ~ ., data = wdbc_train[-c(1)]) 
 summary(logit.model)
 ```
 
+Confusion Matrix: 
 ```{r echo=FALSE, include = TRUE, eval=TRUE}
 
-yhat = predict(logit.model,wdbc_test)
+logityhat = predict(logit.model,wdbc_test)
 
 #split values by probability
-yhatbin = ifelse(yhat > 0.5, 1, 0)
+yhatbin = ifelse(logityhat > 0.5, 1, 0)
 
 #get confusion matrix
-table(yhatbin, wdbc_testy)
-
+(tabl = table(yhatbin, wdbc_testy))
+logit_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
 ```
 
+This model gives us an accuracy of `r logit_accuracy`%. 
 
 ```{r echo = FALSE, eval = TRUE, fig.width=5, fig.height=5, fig.align='center'}
-#TODO: probably combine this to giant plot at the end 
 #plot distributed values
-plot(yhat,wdbc_testy)
+plot(logityhat,wdbc_testy)
 ```
 
-**Figure X**: Caption 
+**Figure X**: Shows the probabilities of diagnosis predicted by our logistic model, versus the actual diagnosis. When computing accuracy, values greater than 0.5 were assigned a value of 1 (malignant), while values less than or equal to 0.5 were assigned a value of 0 (benign).  
 
 ### kNN 
-We used the r package kknn, which was covered in class. 
+We used the r package **kknn** to fit our knn model. To begin, we ran cross-validation once with a large interval of k-values to find an appropriate range of values. Then, with a smaller interval, we ran 10-fold cross validation multiple times to find the optimal k-value. We fit our test data using the optimal k-value, and generated plots and a confusion matrix to determine accuracy. 
 
 ```{r echo=FALSE, include=FALSE, eval=TRUE}
 
@@ -118,8 +119,6 @@ mmsc=function(x){return((x-min(x))/(max(x)-min(x)))}
 xs = apply(x,2,mmsc) #scaling function 
 
 #plot y vs each x
-# TODO: figure out how to plot all of them at once
-# TODO: do we even need this anymore lol 
 #par(mfrow=c(1,2)) #two plot frames
 #pdf(file="crossval-test.pdf")
 #plot(x[,1],y,xlab="radius_mean",ylab="diagnosis")
@@ -127,17 +126,15 @@ xs = apply(x,2,mmsc) #scaling function
 
 # benign = 0
 # malignant = 1 
-levels(y) = c(0,1)
+y = ifelse(y == "M", 1, 0)
 
 # turn y into a vector, yv, for cross-val 
-yv = as.numeric(as.vector(y))
+yv = c(y)
 
 ```
 
 
-Preliminary plot of k versus cvmean
-
-```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
+```{r echo=FALSE, include=FALSE}
 #run cross val once
 par(mfrow=c(1,1)) 
 #set.seed(30) 
@@ -145,19 +142,23 @@ kv = seq(1, 100, 5) #k values to try
 n = length(yv)
 cvtemp = docvknn(xs,yv,kv,nfold=10)
 cvtemp = sqrt(cvtemp/n) #docvknn returns sum of squares
+```
+
+```{r eval=TRUE, echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
 plot(kv,cvtemp)
 ```
 
-**Figure x:** Comparing the k parameter from 1 to 100 in intervals of 5 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally intensive model. Looks like the optimal k-value is somewhere around k=19, so we will reset the kv value to a smaller window (2 to 30).
+**Figure x:** Comparing the k parameter from 1 to 100 in intervals of 5 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally intensive model. 
+
+It looks like the optimal k-value is somewhere around k = 19, so we will reset the kv-value to a smaller window (2 to 30) for 10-fold cross validation.
 
 ```{r echo=FALSE, include=FALSE, eval=TRUE}
 
 kv = 2:30 #new k values to try
-#run cross val multiple times 
-#set.seed(30) 
 
+#run cross val multiple times 
 cvmean = rep(0,length(kv))
-ndocv = 15 # number of CV splits to try...50 took forever so I changed to 10
+ndocv = 10 # number of CV splits to try
 n=length(yv) #vector version of y
 cvmat = matrix(0,length(kv),ndocv) # track results for each split
 for(i in 1:ndocv) {
@@ -165,9 +166,10 @@ for(i in 1:ndocv) {
     cvmean = cvmean + cvtemp
     cvmat[,i] = sqrt(cvtemp/n)
 }
+
 ```
 
-Plot of k versus cvmean, 10-fold 
+
 
 ```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
 cvmean = cvmean/ndocv
@@ -176,11 +178,9 @@ plot(kv,cvmean,type="n",ylim=range(cvmat),xlab="k",cex.lab=1.5)
 for(i in 1:ndocv) lines(kv,cvmat[,i],col=i,lty=3)  #plot each result
 lines(kv,cvmean,type="b",col="black",lwd=2)  #plot average result
 
-#TODO: pls double check my caption below. 
-
 ```
 
-**Figure x:** This plot compares the paramter k at values between 2 and 30 with the RMSE of each model. Each colored line represents a different subset of the training data that, when averaged together to produce the black line, reduces bias and variance in the model.
+**Figure X:** This plot compares the paramter k at values between 2 and 30 with the RMSE of each model. Each colored line represents a different subset of the data; the black line represents the average values. This helps us find the balance between bias and variance for the model. 
 
 
 ```{r echo =FALSE,eval=TRUE} 
@@ -189,30 +189,71 @@ for(i in 2:29) {
   cat("k=",i, " rmse=", cvmean[i], "\n")  
 } 
 
-cat("optimal k=", which.min(cvmean), "with average rmse of ", min(cvmean), "\n")
+#cat("optimal k=", which.min(cvmean), "with average rmse of ", min(cvmean), "\n")
 
 ```
 
 
-Refit using k=17
+Our optimal k-value is `r which.min(cvmean)` with an average RMSE of `r min(cvmean)`. This is pretty close to our initial approximation. Let's refit using k = 17:
 
 
 ```{r echo=FALSE, eval=TRUE}
-ddf = data.frame(yv,xs)
-near17 = kknn(yv~.,ddf,ddf,k=17,kernel="rectangular")
-lmf = lm(yv~.,ddf)
-fmat = cbind(yv,near17$fitted,lmf$fitted)
+near17 = kknn(diagnosis~.,wdbc_train,wdbc_test,k=17,kernel="rectangular")
+#fmat = cbind(wdbc_test$diagnosis,near17$prob[,2])
 
-#lets see how our knn model compares to linear 
-colnames(fmat) = c("y","kNN17","linear")
-pairs(fmat)
-print(cor(fmat))
+(tabl = table(near17$fitted, wdbc_test$diagnosis))
+knn_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
 
 ```
 
-The table shows that kNN performs decently well, with an RMSE of 0.216 and accuracy of 91%. 
+The confusion matrix shows that kNN performs decently well, with `r knn_accuracy`% accuracy.  
 
+```{r fig.width=5, fig.height=5, fig.align='center'}
+
+plot(near17$prob[,2], wdbc_testy)
+
+```
+
+**Figure X:** Probabilities predicted by our kNN model versus actual diagnosis. 
 
 ### Neural Nets
 
+Single layer neural net with 5 nodes.
+
+```{r echo=FALSE, eval=TRUE}
+#Load NN library and set seed
+library(nnet)
+#set.seed(30)
+
+#Generate model and yhat values for test data
+nnmodel = nnet(diagnosis ~ ., wdbc_train,size=5,decay=.01,maxit=1000)
+nnyhat = predict(nnmodel, wdbc_test)
+
+#Convert to binary values
+nnyhat_bin = ifelse(nnyhat > 0.5, 1, 0)
+
+#Confusion Matrix
+tabl = table(nnyhat_bin, wdbc_testy)
+nn_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
+
+```
+
+Our neural nets model has an accuracy of `r nn_accuracy`%. While this percentage is still decent, we are concerned because the errors are more widespread (i.e., incorrectly predicted malignant points have values very close to 0, and vice versa).
+
+``` {r echo = FALSE, eval = TRUE, fig.width=5, fig.height=5, fig.align='center'}
+
+plot(nnyhat, wdbc_testy)
+
+```
+**Figure X:** Probabilities predicted by neural nets model versus actual diagnosis. 
+
+
 ## Conclusion
+``` {r echo=FALSE, include = TRUE, eval=TRUE}
+#plot all models
+fmat = cbind(wdbc_testy,logityhat,near17$prob[,2],nnyhat)
+colnames(fmat) = c("y","logit","kNN17","nn")
+pairs(fmat)
+
+```
+**Figure X:** All models versus real diagnosis values. 
