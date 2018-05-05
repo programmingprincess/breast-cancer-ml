@@ -16,5 +16,8 @@ We used generalized linear models (glm) to model our data. Since the outcome we 
 ## K-Nearest Neighbors 
 We used the r package kknn to fit our knn model. To begin, we ran cross-validation once with a large interval of k-values to find an appropriate range of values. Then, with a smaller interval, we ran 10-fold cross validation multiple times to find the optimal k-value. We fit our test data using the optimal k-value, and generated plots and a confusion matrix to determine accuracy.
 
+## Naive Bayesian Classification
+Tune laplace value 
+
 ## Neural Net
 Single layer neural net with 5 nodes.
