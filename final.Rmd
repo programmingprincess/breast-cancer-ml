@@ -2,10 +2,12 @@
 title: "STP 494 Final"
 author: "Jiaqi Wu, Excel Ortega, Terry Wen, Alex Ryan, Peter Le"
 date: "April 22, 2018"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
-```{r setup, include=TRUE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -34,15 +36,15 @@ The mean, standard error, and "worst" (largest) of each of the 10 features were 
 
 
 ### Processing the Data 
-```{r echo=FALSE, include=FALSE, warning=FALSE}
+```{r echo=FALSE, include=FALSE, tidy=TRUE, warning=FALSE, eval=TRUE}
 ## prep and setup data 
 getwd()
-# wdbc = wisconsin diagnostic breast cancer 
+## wdbc = wisconsin diagnostic breast cancer 
 wdbc = read.csv("brcancer.csv", header=TRUE)
 wdbc = wdbc[,-1] #remove ID from dataset
 wdbc = wdbc[1:11] #use means only
 
-#wdbc$diagnosis2 = ifelse(wdbc$diagnosis == "M", 1, 0)
+## wdbc$diagnosis2 = ifelse(wdbc$diagnosis == "M", 1, 0)
 
 ## Split into 70% train, 30% test 
 n = nrow(wdbc) #num "rows" in data
@@ -62,8 +64,7 @@ First, we removed the ID attribute from the dataset because it does not correlat
 We also added a column that maps B (benign) to 0 and M (malignant) to 1. This column contains the same information as the original diagnosis column, except the values are 0 and 1 rather than B and M (respectively). In total, the dataset contains 569 observations and 12 variables. We split the data into two sets to build our models: 70% training data, and 30% test data. 
 
 ## Data Models 
-We attempted three methods from our Machine Learning class: logistic regression, k-nearest neighbors, and neural nets. Logistic regression was our baseline reference, but the remaining models were tuned for optimal performance. 
-
+We attempted four methods from our Machine Learning class: logistic regression, k-nearest neighbors, naive bayesian classifier, and neural nets. Logistic regression was our baseline reference, but the remaining models were tuned for optimal performance. 
 
 ### Logistic Regression
 We used generalized linear models (glm) to model our data. Since the outcome we are trying to predict is binomial (benign or malignant), we chose a logistic regression model, given below: 
@@ -92,14 +93,14 @@ yhatbin = ifelse(logityhat > 0.5, 1, 0)
 logit_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
 ```
 
-This model gives us an accuracy of `r logit_accuracy`%. 
+This model gives an accuracy of `r round(logit_accuracy,2)`%. 
 
 ```{r echo = FALSE, eval = TRUE, fig.width=5, fig.height=5, fig.align='center'}
 #plot distributed values
 plot(logityhat,wdbc_testy)
 ```
 
-**Figure X**: Shows the probabilities of diagnosis predicted by our logistic model, versus the actual diagnosis. When computing accuracy, values greater than 0.5 were assigned a value of 1 (malignant), while values less than or equal to 0.5 were assigned a value of 0 (benign).  
+**Figure 1.**: Shows the probabilities of diagnosis predicted by our logistic model, versus the actual diagnosis. When computing accuracy, values greater than 0.5 were assigned a value of 1 (malignant), while values less than or equal to 0.5 were assigned a value of 0 (benign).  
 
 ### kNN 
 We used the r package **kknn** to fit our knn model. To begin, we ran cross-validation once with a large interval of k-values to find an appropriate range of values. Then, with a smaller interval, we ran 10-fold cross validation multiple times to find the optimal k-value. We fit our test data using the optimal k-value, and generated plots and a confusion matrix to determine accuracy. 
@@ -148,7 +149,7 @@ cvtemp = sqrt(cvtemp/n) #docvknn returns sum of squares
 plot(kv,cvtemp)
 ```
 
-**Figure x:** Comparing the k parameter from 1 to 100 in intervals of 5 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally intensive model. 
+**Figure 2.** Comparing the k parameter from 1 to 100 in intervals of 5 with the RMSE of a single model. This allows us to approximate range of appropriate k-values before moving onto a more computationally intensive model. 
 
 It looks like the optimal k-value is somewhere around k = 19, so we will reset the kv-value to a smaller window (2 to 30) for 10-fold cross validation.
 
@@ -170,7 +171,6 @@ for(i in 1:ndocv) {
 ```
 
 
-
 ```{r echo=FALSE, fig.width=5, fig.height=5, fig.align='center'}
 cvmean = cvmean/ndocv
 cvmean = sqrt(cvmean/n)
@@ -180,7 +180,7 @@ lines(kv,cvmean,type="b",col="black",lwd=2)  #plot average result
 
 ```
 
-**Figure X:** This plot compares the paramter k at values between 2 and 30 with the RMSE of each model. Each colored line represents a different subset of the data; the black line represents the average values. This helps us find the balance between bias and variance for the model. 
+**Figure 3.** This plot compares the paramter k at values between 2 and 30 with the RMSE of each model. Each colored line represents a different subset of the data; the black line represents the average values. This helps us find the balance between bias and variance for the model. 
 
 
 ```{r echo =FALSE,eval=TRUE} 
@@ -206,7 +206,7 @@ knn_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
 
 ```
 
-The confusion matrix shows that kNN performs decently well, with `r knn_accuracy`% accuracy.  
+The confusion matrix shows that kNN performs decently well, with `r round(knn_accuracy,2)`% accuracy.  
 
 ```{r fig.width=5, fig.height=5, fig.align='center'}
 
@@ -214,11 +214,78 @@ plot(near17$prob[,2], wdbc_testy)
 
 ```
 
-**Figure X:** Probabilities predicted by our kNN model versus actual diagnosis. 
+**Figure 4.** Probabilities predicted by our kNN model versus actual diagnosis. 
+
+### Naive Bayesian Classifier
+
+We used a Naive Bayesian Classifier (e1071) to model the data on on a conditionally independent basis. The outcome prediction is binomial, which is a great fit for Naive Bayesian Classifiers. After tuning the laplace value for lowest misclassification rate, we ran Naive Bayes classification with laplace=1.
+
+``` {r echo=FALSE, include=FALSE, eval=TRUE}
+#y values for prediction
+wdbc_testy = wdbc[-ii,]$diagnosis
+wdbc_trainy = wdbc[ii,]$diagnosis
+
+#proporions of malignant and benign in the dataset
+prop.table(table(wdbc_train$diagnosis))
+prop.table(table(wdbc_test$diagnosis))
+library(e1071)
+
+optimal = 0;
+misclassOptimal = 1;
+
+#Finding Optimal Laplace Value
+for(i in 1:30){
+  NB = naiveBayes(wdbc_train, wdbc_trainy,laplace = i)
+  yhat = predict(NB,wdbc_test)
+  ctab = table(yhat,wdbc_testy)
+  ctab
+  misclass = (sum(ctab)-sum(diag(ctab)))/sum(ctab)
+  perMalignant = ctab[2,2]/sum(ctab[,2])
+  if(misclassOptimal > misclass)
+  {
+    optimal = i;
+  }
+}
+
+## Optimal Laplace Value is 1
+## cat("Optimal Laplace value is: ", optimal, "\n")
+#Performing Naive Bayesian Classification with a Laplace value of 1
+
+```
+
+Confusion Matrix: 
+
+```{r echo=FALSE, inlcude=TRUE, eval=TRUE}
+NB = naiveBayes(wdbc_train, wdbc_trainy, laplace = 1)
+nbHat = predict(NB,wdbc_test)
+(ctab = table(nbHat,wdbc_testy))
+
+## Model accuracy
+nb_accuracy = (ctab[1,1]+ctab[2,2])/nrow(wdbc_test) * 100
+
+misclass = (sum(ctab)-sum(diag(ctab)))/sum(ctab)
+perMalignant = ctab[2,2]/sum(ctab[,2])
+
+## cat("misclass,perMalignant: ", misclass,perMalignant,"\n")
+```
+
+Our Naive Bayesian classifer model has an accuracy of `r round(nb_accuracy,2)`%.
+
+```{r echo = FALSE, eval = TRUE, fig.width=6, fig.height=6, fig.align='center'}
+oldpar <- par(mfrow=c(1,2)) # used for formatting plots
+
+plot(nbHat, ylab = "Total # of Classifications", xlab = "Type of Breast Cancer", main="Predictions From Naive Bayes")
+plot(wdbc_testy, ylab = "Total # of Classifications", xlab = "Type of Breast Cancer", main="Actual Results From Test Data")
+
+par(oldpar) # reset plot formatting
+```
+
+**Figure 5:** A side by side comparison of Naive Bayes Classifier predictions and actual test data classifications.
+
 
 ### Neural Nets
 
-Single layer neural net with 5 nodes.
+We used a neural network (nnet) package to create a single layer neural net. Tuning was performed with multiple network structures, with different numbers of nodes in the hidden layer. After tuning and analysis, our chosen model included a hidden layer with 5 nodes.
 
 ```{r echo=FALSE, eval=TRUE}
 #Load NN library and set seed
@@ -226,34 +293,38 @@ library(nnet)
 #set.seed(30)
 
 #Generate model and yhat values for test data
-nnmodel = nnet(diagnosis ~ ., wdbc_train,size=5,decay=.01,maxit=1000)
+nnmodel = nnet(diagnosis ~ ., wdbc_train,size=5,decay=.1,maxit=1000)
 nnyhat = predict(nnmodel, wdbc_test)
 
 #Convert to binary values
 nnyhat_bin = ifelse(nnyhat > 0.5, 1, 0)
 
 #Confusion Matrix
-tabl = table(nnyhat_bin, wdbc_testy)
-nn_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) *100
+(tabl = table(nnyhat_bin, wdbc_testy))
+nn_accuracy = (tabl[1,1]+tabl[2,2])/nrow(wdbc_test) * 100
 
 ```
 
-Our neural nets model has an accuracy of `r nn_accuracy`%. While this percentage is still decent, we are concerned because the errors are more widespread (i.e., incorrectly predicted malignant points have values very close to 0, and vice versa).
+Our neural nets model has an accuracy of `r round(nn_accuracy,2)`%. While this percentage is still decent, we are concerned because the errors are more widespread (i.e., incorrectly predicted malignant points have values very close to 0, and vice versa).
 
 ``` {r echo = FALSE, eval = TRUE, fig.width=5, fig.height=5, fig.align='center'}
 
 plot(nnyhat, wdbc_testy)
 
 ```
-**Figure X:** Probabilities predicted by neural nets model versus actual diagnosis. 
+**Figure 6.** Probabilities predicted by neural nets model versus actual diagnosis. 
 
 
 ## Conclusion
 ``` {r echo=FALSE, include = TRUE, eval=TRUE}
 #plot all models
-fmat = cbind(wdbc_testy,logityhat,near17$prob[,2],nnyhat)
-colnames(fmat) = c("y","logit","kNN17","nn")
+fmat = cbind(wdbc_testy,logityhat,near17$prob[,2],nbHat,nnyhat)
+colnames(fmat) = c("y","logit","kNN17","naivebayes","nn")
 pairs(fmat)
 
+print(cor(fmat))
 ```
-**Figure X:** All models versus real diagnosis values. 
+
+**Figure 7.** All models versus real diagnosis values. 
+
+Based on the accuracy of each model, we can compare each model and rank their effectiveness. Each of the accuracy was computed from the generate confusion matrix. Our Naive-Bayes classifier has the highest accuracy with 95.91%, followed by KNN at 95.32% accuracy and neural nets at 94.74%. These three models all performed better than logistic regression at 92.40%. Based on the correlation table generated above, the correlations also rank the models in the same order, with logistic regression having the smallest correlation. In future work, these models could be adjusted more, tuning parameters with a separate set of cross-validation data to improve upon test performance.
