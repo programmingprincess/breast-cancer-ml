@@ -3,8 +3,8 @@ title: "STP 494 Final"
 author: "Jiaqi Wu, Excel Ortega, Terry Wen, Alex Ryan, Peter Le"
 date: "April 22, 2018"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -327,4 +327,4 @@ print(cor(fmat))
 
 **Figure 7.** All models versus real diagnosis values. 
 
-Based on the accuracy of each model, we can compare each model and rank their effectiveness. Each of the accuracy was computed from the generate confusion matrix. Our Naive-Bayes classifier has the highest accuracy with 95.91%, followed by KNN at 95.32% accuracy and neural nets at 94.74%. These three models all performed better than logistic regression at 92.40%. Based on the correlation table generated above, the correlations also rank the models in the same order, with logistic regression having the smallest correlation. In future work, these models could be adjusted more, tuning parameters with a separate set of cross-validation data to improve upon test performance.
+Based on the accuracy of each model, we can compare each model and rank their effectiveness. Each of the accuracy was computed from the confusion matrix. Our Naive-Bayes classifier has the highest accuracy with 95.91%, followed by KNN at 95.32% accuracy and neural nets at 94.74%. These three models all performed better than logistic regression at 92.40%. Based on the correlation table generated above, the correlations also rank the models in the same order, with logistic regression having the smallest correlation. In future work, these models could be adjusted more, tuning parameters with a separate set of cross-validation data to improve upon test performance.
